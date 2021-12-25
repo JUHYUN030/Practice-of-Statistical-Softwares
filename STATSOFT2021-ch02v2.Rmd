@@ -1,0 +1,56 @@
+---
+title: "STATSOFT2021-ch02v2"
+output: html_document
+---
+
+# 패키지 관련
+```{r}
+library(dplyr)
+library(ggplot2)
+library(gridExtra)
+```
+
+```{r}
+str(iris)
+```
+
+```{r}
+head(iris, 10)
+```
+
+```{r}
+plot(iris)
+```
+
+# read.csv
+```{r}
+plot(iris$Petal.Width, iris$Petal.Length, col=iris$Species)
+```
+
+```{r}
+tips <- read.csv('C:\\WORK\\data\\tips.csv', stringsAsFactors=TRUE)
+str(tips)
+```
+
+```{r}
+head(tips, 10)
+```
+
+```{r}
+summary(tips)
+```
+
+# dplyr와 ggplot 사용 예
+```{r}
+g1 <- tips %>%
+  ggplot(aes(size)) + geom_histogram()
+g2 <- tips %>%
+  ggplot(aes(total_bill, tip)) + geom_point()
+g3 <- tips %>%
+  ggplot(aes(total_bill, tip)) + geom_point(aes(col = day))
+g4 <- tips %>%
+  ggplot(aes(total_bill, tip)) + 
+  geom_point(aes(col = day, pch=sex), size=3)
+grid.arrange(grobs=list(g1, g2, g3, g4), nr=2)
+```
+

@@ -1,0 +1,516 @@
+---
+title: "lab01-birthwt-homework.knit"
+output: html_document
+---
+
+# 자료읽기
+
+```{r}
+library(tidyverse)
+library(caret)
+DF <- read.csv('C:\\WORK\\data\\birthwt4times.csv')
+DF <-
+DF %>%
+mutate(
+ low = factor(low),
+ lwtkg = round(lwt*0.453592,1),
+ race = factor(race))
+DF$lwt <- NULL
+```
+
+# 자료분할
+
+```{r}
+TR <- DF[seq(1, nrow(DF), 2),]
+dim(TR)
+
+TS <- DF[seq(2, nrow(DF), 2),]
+dim(TS)
+```
+
+# 1. 선형회귀 모형
+
+## age vs bwt
+```{r}
+ggplot(TR, aes(x=age, y=bwt)) +
+geom_point() +
+ geom_hline(yintercept=2500) +
+ geom_smooth(method='lm')
+```
+
+## lwtkg vs bwt
+```{r}
+ggplot(TR, aes(x=lwtkg, y=bwt)) +
+geom_point() +
+ geom_hline(yintercept=2500) +
+ geom_smooth(method='lm')
+```
+
+## lwtkg vs bwt | race
+```{r}
+ggplot(TR, aes(x=lwtkg, y=bwt)) +
+geom_point() +
+ geom_smooth(method='lm') +
+ facet_wrap(~race)
+```
+
+## race vs bwt
+```{r}
+ggplot(TR, aes(x=race, y=bwt)) +
+ geom_boxplot()
+```
+
+## smoke vs bwt
+```{r}
+ggplot(TR, aes(x=factor(smoke), y=bwt)) +
+ geom_boxplot()
+```
+
+## smoke vs bwt | smoke
+```{r}
+ggplot(TR, aes(x=age, y=bwt)) +
+geom_point() +
+ geom_smooth(method='lm') +
+ facet_wrap(~smoke)
+```
+
+## ui vs bwt
+```{r}
+ggplot(TR, aes(x=factor(ui), y=bwt)) +
+ geom_boxplot()
+```
+
+## ht vs bwt
+```{r}
+ggplot(TR, aes(x=factor(ht), y=bwt)) +
+ geom_boxplot()
+```
+
+# 모형적합
+- 종속변수(y): bwt
+- 독립변수: age, ftv, ptl, race, smoke, ht, ui, lwtkg
+
+```{r}
+Rlm <- lm(bwt ~ age+ftv+ptl+race+smoke+ht+ui+lwtkg, data=TR)
+summary(Rlm)
+```
+
+```{r}
+TROUT <-
+ TR %>%
+ mutate(
+ yh=predict(Rlm),
+ e=residuals(Rlm))
+head(TROUT)
+```
+
+```{r}
+mean(TROUT$e^2) # MSE
+```
+
+```{r}
+mean(abs(TROUT$e)) # MAE
+```
+
+# 모형검토(TR)
+
+```{r}
+ggplot(TROUT, aes(x=bwt, y=yh)) +
+geom_point() +
+geom_smooth(method='lm')
+```
+
+```{r}
+ggplot(TROUT, aes(x=yh, y=e)) +
+geom_point() +
+ geom_smooth(method='lm')
+```
+
+```{r}
+ggplot(TROUT, aes(x=e)) +
+geom_histogram()
+```
+
+```{r}
+TROUT %>% summarize(mn=mean(e), sd=sd(e), min=min(e), max=max(e))
+```
+
+```{r}
+summary(TROUT$e)
+```
+
+# 모형평가(TS)
+
+```{r}
+TSOUT <-
+TS %>%
+mutate(yh=predict(Rlm, TS), e=bwt-yh)
+head(TSOUT)
+```
+
+```{r}
+mean(TSOUT$e^2) # MSE
+```
+
+```{r}
+mean(abs(TSOUT$e)) # MAE
+```
+
+```{r}
+TSOUT %>% summarize(mn=mean(e), sd=sd(e), min=min(e), max=max(e))
+```
+
+```{r}
+summary(TSOUT$e)
+```
+
+# 스코어
+
+```{r}
+SC <- read.csv(text='
+age,ftv,race,ptl,smoke,ht,ui,lwtkg
+30,0,3,0,1,0,0,60
+40,0,3,0,1,0,0,60
+30,0,3,0,0,0,0,60
+40,0,3,0,0,0,0,60
+30,0,3,0,1,1,0,60
+40,0,3,0,1,1,0,60
+30,0,3,0,0,1,0,60
+40,0,3,0,0,1,0,60
+30,0,3,0,1,1,1,60
+40,0,3,0,1,1,1,60
+30,0,3,0,0,1,1,60
+40,0,3,0,0,1,1,60
+')
+SC <- SC %>% mutate(race=factor(race, levels=1:3))
+SCOUT <-
+ SC %>%
+ mutate(yh = predict(Rlm, SC))
+SCOUT
+```
+
+# 2. 로지스틱회귀모형
+## age vs low
+```{r}
+ggplot(TR, aes(x=factor(low), y=age)) +
+geom_boxplot(fill='gray') +
+ geom_jitter(color='red', alpha=0.5, size=2)
+```
+
+## lwtkg vs low
+```{r}
+ggplot(TR, aes(x=factor(low), y=lwtkg)) +
+geom_boxplot(fill='gray') +
+ geom_jitter(color='red', alpha=0.5, size=2)
+```
+
+## race vs low
+```{r}
+ggplot(TR, aes(x=race, fill=low)) +
+geom_bar()
+```
+
+## smoke vs low
+```{r}
+ggplot(TR, aes(x=factor(smoke), fill=low)) +
+geom_bar()
+```
+
+
+# 모형적합
+- 종속변수(y): low
+- 독립변수: age, ftv, ptl, race, smoke, ht, ui, lwtkg
+
+```{r}
+Mglm <- glm(low ~ age+ftv+ptl+race+smoke+ht+ui+lwtkg, data=TR, family=binomial)
+summary(Mglm)
+```
+
+# 모형검토(TR)
+
+```{r}
+TROUT <-
+ TR %>% dplyr::select(low) %>%
+ mutate(
+ ph = predict(Mglm, type='response'),
+ yh = factor(ifelse(ph>=0.5, 1, 0)))
+head(TROUT)
+```
+
+```{r}
+confusionMatrix(TROUT$yh, TROUT$low, positive='1')
+```
+
+# 모형평가(TS)
+
+```{r}
+TSOUT <-
+TS %>%
+mutate(yh=predict(Rlm, TS), e=bwt-yh)
+head(TSOUT)
+```
+
+```{r}
+mean(TSOUT$e^2) # MSE
+```
+
+```{r}
+mean(abs(TSOUT$e)) # MAE
+```
+
+```{r}
+TSOUT %>% summarize(mn=mean(e), sd=sd(e), min=min(e), max=max(e))
+```
+
+```{r}
+summary(TSOUT$e)
+```
+
+
+```{r}
+TSOUT <-
+ TS %>% dplyr::select(low) %>%
+ mutate(
+ ph = predict(Mglm, TS, type='response'),
+ yh = factor(ifelse(ph>=0.5, 1, 0)))
+head(TSOUT)
+```
+
+```{r}
+confusionMatrix(TSOUT$yh, TSOUT$low, positive='1')
+```
+
+# 스코어
+
+```{r}
+SC <- read.csv(text='
+age,ftv,race,ptl,smoke,ht,ui,lwtkg
+30,0,3,0,1,0,0,60
+40,0,3,0,1,0,0,60
+30,0,3,0,0,0,0,60
+40,0,3,0,0,0,0,60
+30,0,3,0,1,1,0,60
+40,0,3,0,1,1,0,60
+30,0,3,0,0,1,0,60
+40,0,3,0,0,1,0,60
+30,0,3,0,1,1,1,60
+40,0,3,0,1,1,1,60
+30,0,3,0,0,1,1,60
+40,0,3,0,0,1,1,60
+')
+SC <- SC %>% mutate(race=factor(race, levels=1:3))
+SCOUT <-
+ SC %>%
+ mutate(
+ ph = predict(Mglm, SC, type='response'),
+ yh = factor(ifelse(ph>=0.5, 1, 0)))
+SCOUT
+```
+
+# 3. 나무모형
+
+```{r}
+library(yardstick)
+library(ROCR)
+library(pROC)
+library(rpart)
+library(rpart.plot)
+```
+
+```{r}
+TR %>%
+group_by(low) %>%
+summarize_if(is.numeric, 
+             list(mn='mean', sd='sd', min='min', max='max'))
+```
+
+# 모형적합
+- 종속변수(y): low
+- 독립변수: age, ftv, ptl, race, smoke, ht, ui, lwtkg
+
+```{r}
+Mr <- rpart(low~ age+ftv+ptl+race+smoke+ht+ui+lwtkg, data=TR)
+summary(Mr)
+```
+
+```{r}
+plot(Mr, margin=1)
+text(Mr, use.n=TRUE)
+rpart.plot(Mr, type=4)
+```
+
+# 모형검토(TR)
+
+```{r}
+TROUT <-
+ TR %>% dplyr::select(low) %>%
+ mutate(
+ ph = predict(Mr, type='prob')[,2],
+ yh = factor(ifelse(ph>=0.5, 1, 0)))
+head(TROUT)
+```
+
+```{r}
+confusionMatrix(TROUT$yh, TROUT$low, positive='1')
+```
+
+```{r}
+TR <-
+TR %>%
+  mutate(
+    ph = predict (Mr, type='prob')[,2],
+    yh = factor(ifelse(ph>=0.5, 1, 0)))
+head(TR)
+```
+
+# 모형평가(TS)
+
+```{r}
+TSOUT <-
+TS %>%
+mutate(yh=predict(Mr, TS), e=bwt-yh)
+head(TSOUT)
+```
+
+```{r}
+mean(TSOUT$e^2) # MSE
+```
+
+```{r}
+mean(abs(TSOUT$e)) # MAE
+```
+
+```{r}
+TSOUT %>% summarize(mn=mean(e), sd=sd(e), min=min(e), max=max(e))
+```
+
+```{r}
+summary(TSOUT$e)
+```
+
+# 스코어
+
+```{r}
+SC <- read.csv(text='
+age,ftv,race,ptl,smoke,ht,ui,lwtkg
+30,0,3,0,1,0,0,60
+40,0,3,0,1,0,0,60
+30,0,3,0,0,0,0,60
+40,0,3,0,0,0,0,60
+30,0,3,0,1,1,0,60
+40,0,3,0,1,1,0,60
+30,0,3,0,0,1,0,60
+40,0,3,0,0,1,0,60
+30,0,3,0,1,1,1,60
+40,0,3,0,1,1,1,60
+30,0,3,0,0,1,1,60
+40,0,3,0,0,1,1,60
+')
+SC <- SC %>% mutate(race=factor(race, levels=1:3))
+
+SCOUT <-
+  SC %>%
+  mutate(
+    ph = predict(Mr, SC, type='prob')[,2],
+    yh = factor(ifelse(ph>=0.5, 1, 0)))
+SCOUT
+```
+
+
+# 4. 랜덤포레스트
+
+```{r}
+library(randomForest)
+```
+
+# 모형적합
+- 종속변수(y): low
+- 독립변수: age, ftv, ptl, race, smoke, ht, ui, lwtkg
+
+```{r}
+Mrf <- randomForest(low~ age+ftv+ptl+race+smoke+ht+ui+lwtkg, data=TR)
+summary(Mr)
+```
+
+```{r}
+plot(Mrf)
+varImpPlot(Mrf)
+treesize(Mrf)
+```
+
+# 모형검토(TR)
+
+```{r}
+TROUT <-
+ TR %>% dplyr::select(low) %>%
+ mutate(
+ ph = predict(Mrf, type='prob')[,2],
+ yh = factor(ifelse(ph>=0.5, 1, 0)))
+head(TROUT)
+```
+
+```{r}
+confusionMatrix(TROUT$yh, TROUT$low, positive='1')
+```
+
+```{r}
+TR <-
+TR %>%
+  mutate(
+    ph = predict (Mrf, type='prob')[,2],
+    yh = factor(ifelse(ph>=0.5, 1, 0)))
+head(TR)
+```
+
+# 모형평가(TS)
+
+```{r}
+TSOUT <-
+TS %>%
+mutate(yh=predict(Mrf, TS), e=bwt-yh)
+head(TSOUT)
+```
+
+```{r}
+mean(TSOUT$e^2) # MSE
+```
+
+```{r}
+mean(abs(TSOUT$e)) # MAE
+```
+
+```{r}
+TSOUT %>% summarize(mn=mean(e), sd=sd(e), min=min(e), max=max(e))
+```
+
+```{r}
+summary(TSOUT$e)
+```
+
+# 스코어
+
+```{r}
+SC <- read.csv(text='
+age,ftv,race,ptl,smoke,ht,ui,lwtkg
+30,0,3,0,1,0,0,60
+40,0,3,0,1,0,0,60
+30,0,3,0,0,0,0,60
+40,0,3,0,0,0,0,60
+30,0,3,0,1,1,0,60
+40,0,3,0,1,1,0,60
+30,0,3,0,0,1,0,60
+40,0,3,0,0,1,0,60
+30,0,3,0,1,1,1,60
+40,0,3,0,1,1,1,60
+30,0,3,0,0,1,1,60
+40,0,3,0,0,1,1,60
+')
+SC <- SC %>% mutate(race=factor(race, levels=1:3))
+
+SCOUT <-
+  SC %>%
+  mutate(
+    ph = predict(Mrf, SC, type='prob')[,2],
+    yh = factor(ifelse(ph>=0.5, 1, 0)))
+SCOUT
+```
